@@ -36,19 +36,15 @@ void Run() {
   Initialize();
 
   entt::registry registry;
-  for (size_t i = 0; i < 10; i++) {
-    for (size_t j = 0; j < 10; j++) {
-      auto voxel = registry.create();
-      registry.emplace<Voxel>(voxel);
-      registry.emplace<Transform>(voxel, glm::vec3(i * 2, 0, j * 2));
-      registry.emplace<Color>(voxel, glm::u8vec4(rand() % 70, 255 - rand() % 50, 0, 255));
-    }
-  }
+  auto voxel = registry.create();
+  registry.emplace<Voxel>(voxel, VOXEL_ALL);
+  registry.emplace<Transform>(voxel);
+  registry.emplace<Color>(voxel, glm::u8vec4(255, 0, 0, 0));
 
   auto camera = registry.create();
   registry.emplace<Camera>(camera, glm::perspective(45.0f, core::GetAspect(), 0.01f, 500.0f), 10, 25);
-  auto &camera_transform = registry.emplace<Transform>(camera);
-  auto &camera_direction = registry.emplace<Direction>(camera);
+  registry.emplace<Transform>(camera);
+  registry.emplace<Direction>(camera);
   registry.emplace<LookAtDirectionTag>(camera);
 
   glfw_learn::renderer::gl::VoxelSystem voxel_system;
@@ -101,9 +97,6 @@ void Initialize() {
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
   renderer::gl::InitializeOpenGL();
-
-  glEnable(GL_DEPTH_TEST);
-  glViewport(0, 0, width, height);
 }
 
 void SetWindowHints() {
@@ -117,5 +110,4 @@ void SetWindowHints() {
   glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
   glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
 }
-
 }

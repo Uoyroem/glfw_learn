@@ -3,6 +3,7 @@
 //
 
 #include "glfw_learn/renderer/gl/gl.h"
+#include "glfw_learn/core/window.h"
 
 #include <iostream>
 #define GLFW_INCLUDE_NONE
@@ -13,6 +14,10 @@ namespace glfw_learn::renderer::gl {
 void InitializeOpenGL() {
   gladLoadGL(glfwGetProcAddress);
   glDebugMessageCallback(OpenGLDebugCallback, nullptr);
+  glEnable(GL_DEPTH_TEST);
+  glEnable(GL_CULL_FACE);
+  glCullFace(GL_BACK);
+  glViewport(0, 0, core::GetWidth(), core::GetHeight());
 }
 void OpenGLDebugCallback(GLenum source,
                          GLenum type,
