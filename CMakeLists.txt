@@ -5,7 +5,12 @@ cmake_minimum_required (VERSION 3.24)
 
 project ("glfw_learn")
 
-set (INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set (INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set (RESOURCES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources")
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${glfw_learn_BINARY_DIR}/bin")
+
+file (COPY "${CMAKE_CURRENT_SOURCE_DIR}/resources" DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+
 
 find_package (OpenGL REQUIRED)
 

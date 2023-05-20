@@ -3,6 +3,7 @@
 //
 
 #include "glfw_learn/camera.h"
+
 #include "glfw_learn/core/input.h"
 #include "glfw_learn/core/time.h"
 #include "glfw_learn/transform.h"
@@ -11,37 +12,45 @@
 #include <GLFW/glfw3.h>
 
 namespace glfw_learn {
-void CameraSystem(entt::registry &registry) {
+void CameraSystem(entt::registry& registry) {
   using namespace core;
 
-  static float pitch = 0, yaw = -90.0f;
-
   auto [camera, transform, direction] =
-      registry.get<Camera, Transform, Direction>(registry.group<Camera, Transform, Direction>().back());
+      registry.get<Camera, Transform, Direction>(
+          registry.group<Camera, Transform, Direction>().back());
 
-  auto x = static_cast<float>(IsKeyPressed(GLFW_KEY_D) - IsKeyPressed(GLFW_KEY_A));
-  auto y = static_cast<float>(IsKeyPressed(GLFW_KEY_SPACE) - IsKeyPressed(GLFW_KEY_LEFT_SHIFT));
-  auto z = static_cast<float>(IsKeyPressed(GLFW_KEY_W) - IsKeyPressed(GLFW_KEY_S));
+  auto x =
+      static_cast<float>(IsKeyPressed(GLFW_KEY_D) - IsKeyPressed(GLFW_KEY_A));
+  auto y = static_cast<float>(IsKeyPressed(GLFW_KEY_SPACE) -
+                              IsKeyPressed(GLFW_KEY_LEFT_SHIFT));
+  auto z =
+      static_cast<float>(IsKeyPressed(GLFW_KEY_W) - IsKeyPressed(GLFW_KEY_S));
 
-  auto delta_time = core::GetDeltaTime();
+  auto delta_time = GetDeltaTime();
 
-  transform.position +=
-      (direction.right * x + direction.up * y + direction.forward * z) * camera.speed * delta_time;
+  transform.position += (direction.right * x + glm::vec3(0, 1.0f, 0) * y +
+                         direction.forward * z) *
+                        camera.speed * delta_time;
 
-  auto &mouse_ox = GetXMouseOffset();
-  auto &mouse_oy = GetYMouseOffset();
+  float mouse_x = GetMouseX();
+  float mouse_y = GetMouseY();
 
-  if (static_cast<bool>(mouse_ox) || static_cast<bool>(mouse_oy)) {
-    pitch += mouse_oy * camera.sensitivity * delta_time;
-    yaw -= mouse_ox * camera.sensitivity * delta_time;
+  static bool initialized = false;
+  static float last_mouse_x = 0, last_mouse_y = 0;
 
-    direction.forward.x = cosf(glm::radians(pitch)) * cosf(glm::radians(yaw));
-    direction.forward.y = sinf(glm::radians(pitch));
-    direction.forward.z = cosf(glm::radians(pitch)) * sinf(glm::radians(yaw));
+  float mouse_ox = last_mouse_x - mouse_x;
+  float mouse_oy = last_mouse_y - mouse_y;
+
+  if ((mouse_ox || mouse_oy) && initialized) {
+    direction.euler_angles.x += mouse_oy * camera.sensitivity * delta_time;
+    direction.euler_angles.y += mouse_ox * camera.sensitivity * delta_time;
   }
 
-  mouse_ox = 0;
-  mouse_oy = 0;
-}
-}
+  last_mouse_x = mouse_x;
+  last_mouse_y = mouse_y;
 
+  if (!initialized) {
+    initialized = true;
+  }
+}
+}  // namespace glfw_learn

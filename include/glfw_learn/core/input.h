@@ -7,8 +7,8 @@
 
 namespace glfw_learn::core {
 bool IsKeyPressed(int key);
-float &GetXMouseOffset();
-float &GetYMouseOffset();
+float GetMouseX();
+float GetMouseY();
 }
 
 #endif //GLFW_LEARN_INCLUDE_GLFW_LEARN_INPUT_H_

@@ -5,8 +5,8 @@
 #include <map>
 
 namespace glfw_learn::core {
-std::map<int, bool> keys;
-float mouse_ox = 0, mouse_oy = 0;
+static std::map<int, bool> keys;
+static float mouse_x = 0, mouse_y = 0;
 
 bool IsKeyPressed(int key) {
   return keys.contains(key) && keys.at(key);
@@ -21,25 +21,9 @@ void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods
   }
 }
 void CursorPosCallback(GLFWwindow *window, double x, double y) {
-  static bool initialized = false;
-  static double mouse_x, mouse_y;
-
-  if (initialized) {
-    mouse_ox = static_cast<float>(mouse_x - x);
-    mouse_oy = static_cast<float>(mouse_y - y);
-  }
-
-  mouse_x = x;
-  mouse_y = y;
-
-  if (!initialized) {
-    initialized = true;
-  }
+  mouse_x = static_cast<float>(x);
+  mouse_y = static_cast<float>(y);
 }
-float &GetXMouseOffset() {
-  return mouse_ox;
-}
-float &GetYMouseOffset() {
-  return mouse_oy;
-}
+float GetMouseX() { return mouse_x; }
+float GetMouseY() { return mouse_y; }
 }
