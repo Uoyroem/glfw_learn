@@ -11,7 +11,6 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${glfw_learn_BINARY_DIR}/bin")
 
 file (COPY "${CMAKE_CURRENT_SOURCE_DIR}/resources" DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 
-
 find_package (OpenGL REQUIRED)
 
 # Включите подпроекты.

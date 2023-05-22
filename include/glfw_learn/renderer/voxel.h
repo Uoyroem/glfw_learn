@@ -12,9 +12,6 @@
 #include <glm/glm.hpp>
 #include <unordered_map>
 
-#include "glfw_learn/renderer/shader.h"
-
-
 namespace glfw_learn::renderer {
 
 using VoxelFace = std::uint8_t;
@@ -45,13 +42,18 @@ void VoxelTransformSystem(entt::registry& registry);
  */
 class VoxelRenderingSystem {
  public:
-  VoxelRenderingSystem(entt::registry& registry);
+  VoxelRenderingSystem();
   ~VoxelRenderingSystem();
 
-  void operator()();
+  void operator()(entt::registry& registry);
  private:
   struct Vertex {
     glm::vec3 position;
+  };
+
+  struct Instance {
+    glm::mat4 transform;
+    glm::vec4 color;
   };
 
   inline static const std::vector<Vertex> kVertices = {
@@ -64,25 +66,18 @@ class VoxelRenderingSystem {
       Vertex{glm::vec3{-1.0f, 1.0f, -1.0f}},   // 6
       Vertex{glm::vec3{1.0f, 1.0f, -1.0f}},    // 7
   };
+  inline static const std::vector<GLuint> kIndexes = {
+    0, 1, 2, 0, 2, 3, 
+    0, 5, 4, 0, 4, 1, 
+    0, 6, 5, 0, 3, 6, 
+    7, 4, 5, 7, 5, 6, 
+    7, 6, 3, 7, 3, 2, 
+    7, 2, 1, 7, 1, 4
+  };
 
-  inline static const std::vector<std::pair<VoxelFace, std::vector<GLuint>>>
-      kVoxelIndexesWithFaces = {
-          {kVoxelFront, {0, 1, 2, 0, 2, 3}}, {kVoxelBottom, {0, 5, 4, 0, 4, 1}},
-          {kVoxelLeft, {0, 6, 5, 0, 3, 6}},
-
-          {kVoxelBack, {7, 4, 5, 7, 5, 6}},  {kVoxelTop, {7, 6, 3, 7, 3, 2}},
-          {kVoxelRight, {7, 2, 1, 7, 1, 4}}};
-
-  GLuint vertex_array_{}, vertex_buffer_{};
-
-  Program* program_;
-
-  std::unordered_map<VoxelFace, GLuint> index_buffers_;
-
-  GLuint GetIndexBuffer(VoxelFace faces);
-
-  entt::registry& registry_;
+  GLuint vertex_array_{}, array_buffers_[2]{}, index_buffer_{}, program_;
 };
+
 }  // namespace glfw_learn::renderer
 
 #endif  // GLFW_LEARN_INCLUDE_GLFW_LEARN_RENDERER_VOXEL_H_

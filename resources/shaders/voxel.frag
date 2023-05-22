@@ -1,7 +1,9 @@
 #version 420 core
 
-uniform vec4 color;
+in vec4 ocolor;
+
+
 
 void main() {
-	gl_FragColor = color;
+	gl_FragColor = ocolor;
 }

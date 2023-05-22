@@ -4,15 +4,15 @@
 
 #include "glfw_learn/renderer/voxel.h"
 
-#include <glad/gl.h>
-
-#include <entt/entt.hpp>
+#include <memory>
+#include <algorithm>
 #include <glm/gtc/type_ptr.hpp>
 #include <vector>
 
 #include "glfw_learn/camera.h"
 #include "glfw_learn/transform.h"
-#include "glfw_learn/core/resource.h"
+#include "glfw_learn/core/engine.h"
+#include "glfw_learn/core/resource_manager.h"
 
 using namespace entt::literals;
 
@@ -25,117 +25,142 @@ void VoxelTransformSystem(entt::registry &registry) {
   }
 }
 
-VoxelRenderingSystem::VoxelRenderingSystem(entt::registry &registry) : registry_{registry} {
+VoxelRenderingSystem::VoxelRenderingSystem() {
   using namespace core;
+  auto engine = Engine::Get();
 
-  auto voxel_vert = registry_.create();
-  registry_.emplace<Resource>(voxel_vert,
-                             std::filesystem::path("shaders/voxel.vert"));
-  auto &voxel_vert_shader =
-      registry_.emplace<Shader>(voxel_vert, GLenum(GL_VERTEX_SHADER));
-  registry_.emplace<LoadResourceTag>(voxel_vert);
-  registry_.emplace<CompileShaderTag>(voxel_vert);
+  auto resource_manager = engine->GetResourceManager();
 
-  auto voxel_frag = registry_.create();
-  registry_.emplace<Resource>(voxel_frag,
-                             std::filesystem::path("shaders/voxel.frag"));
-  auto &voxel_frag_shader =
-      registry_.emplace<Shader>(voxel_frag, GLenum(GL_FRAGMENT_SHADER));
-  registry_.emplace<LoadResourceTag>(voxel_frag);
-  registry_.emplace<CompileShaderTag>(voxel_frag);
+  GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+  auto bytes = resource_manager->Load("shaders/voxel.vert");
+  std::string vert_src{std::cbegin(bytes), std::cend(bytes)};
+  const GLchar *vert_src_as_c_str = vert_src.c_str();
+  glShaderSource(vert, 1, &vert_src_as_c_str, nullptr);
+  glCompileShader(vert);
 
-  auto voxel_program = registry_.create();
-  program_ = &registry_.emplace<Program>(
-      voxel_program, std::vector<Shader*>{&voxel_frag_shader, &voxel_vert_shader});
-  registry.emplace<LinkProgramTag>(voxel_program);
+  GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+  bytes = resource_manager->Load("shaders/voxel.frag");
+  std::string frag_src{std::cbegin(bytes), std::cend(bytes)};
+  const GLchar *frag_src_as_c_str = frag_src.c_str();
+  glShaderSource(frag, 1, &frag_src_as_c_str, nullptr);
+  glCompileShader(frag);
 
-  glGenBuffers(1, &vertex_buffer_);
-  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_);
+  program_ = glCreateProgram();
+  glAttachShader(program_, vert);
+  glAttachShader(program_, frag);
+  glLinkProgram(program_);
+  glDetachShader(program_, vert);
+  glDetachShader(program_, frag);
+
+  glDeleteShader(vert);
+  glDeleteShader(frag);
+
+  glGenBuffers(2, array_buffers_);
+
+  glBindBuffer(GL_ARRAY_BUFFER, array_buffers_[0]);
   glBufferData(GL_ARRAY_BUFFER, kVertices.size() * sizeof(Vertex),
-               kVertices.data(),
-               GL_STATIC_DRAW);
+               kVertices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, array_buffers_[1]);
+  glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(1024 * 1024 * 8),
+               nullptr, GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  glGenBuffers(1, &index_buffer_);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, kIndexes.size() * sizeof(GLuint),
+               kIndexes.data(), GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
   glGenVertexArrays(1, &vertex_array_);
   glBindVertexArray(vertex_array_);
-  glBindBuffer(GL_ARRAY_BUFFER, vertex_array_);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat),
+
+  glBindBuffer(GL_ARRAY_BUFFER, array_buffers_[0]);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
                         reinterpret_cast<void *>(offsetof(Vertex, position)));
   glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, array_buffers_[1]);
+
+  size_t offset = offsetof(Instance, transform);
+  size_t intance_size = sizeof(Instance);
+  size_t vec4_size = sizeof(glm::vec4);
+
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, intance_size,
+                        reinterpret_cast<void *>(offset));
+  glVertexAttribDivisor(1, 1);
+  glEnableVertexAttribArray(1);
+
+  offset += vec4_size;
+  glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, intance_size,
+                        reinterpret_cast<void *>(offset));
+  glVertexAttribDivisor(2, 1);
+  glEnableVertexAttribArray(2);
+
+  offset += vec4_size;
+  glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, intance_size,
+                        reinterpret_cast<void *>(offset));
+  glVertexAttribDivisor(3, 1);
+  glEnableVertexAttribArray(3);
+
+  offset += vec4_size;
+  glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, intance_size,
+                        reinterpret_cast<void *>(offset));
+  glVertexAttribDivisor(4, 1);
+  glEnableVertexAttribArray(4);
+
+  offset = offsetof(Instance, color);
+  glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, intance_size,
+                        reinterpret_cast<void *>(offset));
+  glVertexAttribDivisor(5, 1);
+  glEnableVertexAttribArray(5);
+
   glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_);
   glBindVertexArray(0);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-void VoxelRenderingSystem::operator()() {
-  auto voxels = registry_.view<Voxel, Transform, Color>();
+VoxelRenderingSystem::~VoxelRenderingSystem() {
+  glDeleteBuffers(2, array_buffers_);
+  glDeleteBuffers(1, &index_buffer_);
+  glDeleteVertexArrays(1, &vertex_array_);
+  glDeleteProgram(program_);
+}
 
-  auto program = program_->program;
+void VoxelRenderingSystem::operator()(entt::registry& registry) {
+  auto voxels = registry.view<Voxel, Transform, Color>();
+  
+  auto program = program_;
 
   glUseProgram(program);
   glBindVertexArray(vertex_array_);
 
-  GLint mvp_uniform_location = glGetUniformLocation(program, "mvp");
-  GLint color_uniform_location = glGetUniformLocation(program, "color");
-
-  auto [camera, camera_transform] = registry_.get<Camera, Transform>(
-      registry_.view<Camera, Transform>().back());
-
-  for (auto [_, voxel, voxel_transform, voxel_color] : voxels.each()) {
-    if (!voxel.faces) {
-      continue;
-    }
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GetIndexBuffer(voxel.faces));
-
-    auto mvp = camera.projection * camera_transform.transform *
-               voxel_transform.transform;
-    auto color = glm::vec4(voxel_color.color) / 255.0f;
-
-    glUniformMatrix4fv(mvp_uniform_location, 1, GL_FALSE, glm::value_ptr(mvp));
-    glUniform4fv(color_uniform_location, 1, glm::value_ptr(color));
-    glDrawElements(
-        GL_TRIANGLES,
-        static_cast<GLsizei>(std::bitset<6>(voxel.faces).count()) * 6,
-        GL_UNSIGNED_INT, nullptr);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  std::vector<Instance> instances;
+  for (auto [entity, voxel, transform, color] : voxels.each()) {
+    instances.emplace_back(transform.transform,
+                           glm::vec4(color.color) / 255.0f);
   }
+  
+  glBindBuffer(GL_ARRAY_BUFFER, array_buffers_[1]);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, instances.size() * sizeof(Instance),
+                  instances.data());
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  auto [camera, transform] = registry.get<Camera, Transform>(
+      registry.view<Camera, Transform>().back());
+
+  GLint vp_uniform_location = glGetUniformLocation(program, "vp");
+  auto vp = camera.projection * transform.transform;
+  glUniformMatrix4fv(vp_uniform_location, 1, GL_FALSE, glm::value_ptr(vp));
+
+  glDrawElementsInstanced(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr,
+                          instances.size());
 
   glBindVertexArray(0);
   glUseProgram(0);
-}
-
-VoxelRenderingSystem::~VoxelRenderingSystem() {
-  glDeleteBuffers(1, &vertex_buffer_);
-  for (auto [_, index_buffer] : index_buffers_) {
-    glDeleteBuffers(1, &index_buffer);
-  }
-  glDeleteVertexArrays(1, &vertex_array_);
-  glDeleteProgram(program_->program);
-}
-GLuint VoxelRenderingSystem::GetIndexBuffer(VoxelFace faces) {
-  if (index_buffers_.contains(faces)) {
-    return index_buffers_[faces];
-  }
-
-  GLuint index_buffer;
-  glGenBuffers(1, &index_buffer);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
-
-  std::vector<GLuint> voxel_indexes;
-
-  for (auto &[face, indexes] : kVoxelIndexesWithFaces) {
-    if (faces & face) {
-      voxel_indexes.insert(voxel_indexes.end(), indexes.begin(), indexes.end());
-    }
-  }
-
-  index_buffers_[faces] = index_buffer;
-
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-               static_cast<GLsizeiptr>(voxel_indexes.size() * sizeof(GLuint)),
-               voxel_indexes.data(), GL_STATIC_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-  return index_buffer;
 }
 }  // namespace glfw_learn::renderer
